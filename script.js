@@ -337,28 +337,58 @@ function applyCurrentFilter() {
 
 function renderFilteredRows(rows) {
   const payrollOnly = currentMode.payroll && !currentMode.deductions;
+  const deductionsOnly = !currentMode.payroll && currentMode.deductions;
   const assigned = payrollOnly ? rows : rows.filter((r) => r.restaurant);
   const unassigned = payrollOnly ? [] : rows.filter((r) => !r.restaurant);
 
   resultTbody.innerHTML = "";
   unassignedTbody.innerHTML = "";
 
+  if (assigned.length === 0) {
+    const noDataCols = payrollOnly ? 10 : deductionsOnly ? 4 : 12;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan=\"${noDataCols}\">Нет данных для отображения</td>`;
+    resultTbody.appendChild(tr);
+  }
+
   assigned.forEach((row, idx) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${idx + 1}</td>
-      <td class="restaurant-col">${escapeHtml(row.restaurant)}</td>
-      <td>${escapeHtml(row.name)}</td>
-      <td class="payroll-col">${fmt(row.advance)}</td>
-      <td class="payroll-col">${fmt(row.settlement)}</td>
-      <td class="payroll-col">${fmt(row.bonus)}</td>
-      <td class="deduction-col">${fmt(row.deductions)}</td>
-      <td class="payroll-col">${fmt(row.totalNet)}</td>
-      <td class="payroll-col">${fmt(row.totalGross)}</td>
-      <td class="payroll-col">${fmt(row.advanceNdfl)}</td>
-      <td class="payroll-col">${fmt(row.settlementNdfl)}</td>
-      <td class="payroll-col">${fmt(row.totalNdfl)}</td>
-    `;
+    if (payrollOnly) {
+      tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td>${escapeHtml(row.name)}</td>
+        <td>${fmt(row.advance)}</td>
+        <td>${fmt(row.settlement)}</td>
+        <td>${fmt(row.bonus)}</td>
+        <td>${fmt(row.totalNet)}</td>
+        <td>${fmt(row.totalGross)}</td>
+        <td>${fmt(row.advanceNdfl)}</td>
+        <td>${fmt(row.settlementNdfl)}</td>
+        <td>${fmt(row.totalNdfl)}</td>
+      `;
+    } else if (deductionsOnly) {
+      tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td>${escapeHtml(row.restaurant)}</td>
+        <td>${escapeHtml(row.name)}</td>
+        <td>${fmt(row.deductions)}</td>
+      `;
+    } else {
+      tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td class="restaurant-col">${escapeHtml(row.restaurant)}</td>
+        <td>${escapeHtml(row.name)}</td>
+        <td class="payroll-col">${fmt(row.advance)}</td>
+        <td class="payroll-col">${fmt(row.settlement)}</td>
+        <td class="payroll-col">${fmt(row.bonus)}</td>
+        <td class="deduction-col">${fmt(row.deductions)}</td>
+        <td class="payroll-col">${fmt(row.totalNet)}</td>
+        <td class="payroll-col">${fmt(row.totalGross)}</td>
+        <td class="payroll-col">${fmt(row.advanceNdfl)}</td>
+        <td class="payroll-col">${fmt(row.settlementNdfl)}</td>
+        <td class="payroll-col">${fmt(row.totalNdfl)}</td>
+      `;
+    }
     resultTbody.appendChild(tr);
   });
 
