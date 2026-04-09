@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
-  <script src="xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="styles.css?v=2026.04.09.01" />
+  <script src="xlsx.full.min.js?v=2026.04.09.01"></script>
 </head>
 <body>
   <main class="container">
@@ -18,7 +18,10 @@
         <h1>Зарплата, НДФЛ и удержания</h1>
         <p class="hint">Загружайте нужные пары файлов. Интерфейс автоматически перестраивается под выбранный сценарий.</p>
       </div>
-      <div class="mode-chip" id="modeChip">Режим: ожидание файлов</div>
+      <div class="hero-right">
+        <div class="mode-chip" id="modeChip">Режим: ожидание файлов</div>
+        <div class="version-chip" id="versionChip">Версия: загрузка...</div>
+      </div>
     </section>
 
     <section class="panel upload-grid">
@@ -130,6 +133,6 @@
     </section>
   </main>
 
-  <script src="script.js"></script>
+  <script src="script.js?v=2026.04.09.01"></script>
 </body>
 </html>

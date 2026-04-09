@@ -18,6 +18,9 @@ const restaurantTotalsPanel = document.getElementById("restaurantTotalsPanel");
 const resultTablePanel = document.getElementById("resultTablePanel");
 const unassignedPanel = document.getElementById("unassignedPanel");
 const modeChip = document.getElementById("modeChip");
+const versionChip = document.getElementById("versionChip");
+
+const APP_VERSION = "2026.04.09.01";
 
 const resultTbody = document.querySelector("#resultTable tbody");
 const unassignedTbody = document.querySelector("#unassignedTable tbody");
@@ -141,7 +144,7 @@ exportBtn.addEventListener("click", () => {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportRows), "Свод");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(totalsByRestaurant), "Удержания по ресторанам");
-  XLSX.writeFile(wb, `Свод_ЗП_НДФЛ_Удержания_${todayStamp()}.xlsx`);
+  XLSX.writeFile(wb, `Свод_ЗП_НДФЛ_Удержания_${todayStamp()}_v${APP_VERSION}.xlsx`);
 });
 
 async function parseWorkbookEntries(file) {
@@ -797,3 +800,4 @@ function escapeHtml(str) {
 }
 
 clearUi();
+if (versionChip) versionChip.textContent = `Версия: ${APP_VERSION}`;

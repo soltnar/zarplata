@@ -44,6 +44,12 @@ body {
   gap: 18px;
 }
 
+.hero-right {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   text-transform: uppercase;
@@ -81,6 +87,16 @@ h2 {
   font-weight: 700;
   font-size: 13px;
   white-space: nowrap;
+}
+
+.version-chip {
+  border: 1px solid #d6deee;
+  background: #fff;
+  color: #4a5b78;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
 }
 
 .upload-grid {
@@ -257,6 +273,10 @@ td:nth-child(3) {
   .hero {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .hero-right {
+    justify-items: start;
   }
 
   .filter-row {
