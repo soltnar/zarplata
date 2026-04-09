@@ -12,17 +12,23 @@ const restaurantFilter = document.getElementById("restaurantFilter");
 const statusBox = document.getElementById("status");
 const summaryBox = document.getElementById("summary");
 const restaurantTotalsBox = document.getElementById("restaurantTotals");
+const filterPanel = document.getElementById("filterPanel");
+const summaryPanel = document.getElementById("summaryPanel");
+const restaurantTotalsPanel = document.getElementById("restaurantTotalsPanel");
+const resultTablePanel = document.getElementById("resultTablePanel");
+const unassignedPanel = document.getElementById("unassignedPanel");
 
 const resultTbody = document.querySelector("#resultTable tbody");
 const unassignedTbody = document.querySelector("#unassignedTable tbody");
 
 let allRows = [];
 let filteredRows = [];
+let currentMode = { payroll: false, deductions: false };
 
 const UNASSIGNED = "__UNASSIGNED__";
 
 const NAME_HEADER_RE = /(фио|сотрудник|работник|фамил|получатель|employee|name|отчество)/i;
-const SUM_HEADER_RE = /(сумм|к выдаче|квыплате|выплат|начисл|итог|итого|подсчет|аванс|выдан|на руки|amount|total|зачислить)/i;
+const SUM_HEADER_RE = /(сумм|к выдаче|квыплате|выплат|начисл|итог|итого|подсчет|аванс|выдан|на руки|amount|total)/i;
 const BONUS_RE = /(прем|bonus)/i;
 
 const RESTAURANT_HEADER_RE = /(ресторан|подраздел|место работы|точка|объект|филиал|подразделение|restaurant)/i;
@@ -37,27 +43,36 @@ processBtn.addEventListener("click", async () => {
     const deductionFile = deductionInput.files?.[0];
     const restaurantFile = restaurantInput.files?.[0];
 
-    if (!advanceFile || !settlementFile) {
-      setStatus("Выберите оба основных файла: Аванс и Подсчет.");
+    const payrollMode = Boolean(advanceFile && settlementFile);
+    const deductionsMode = Boolean(deductionFile && restaurantFile);
+
+    if (!payrollMode && !deductionsMode) {
+      setStatus("Загрузите либо пару файлов Аванс+Подсчет, либо пару Удержания+Сотрудники/рестораны.");
       return;
     }
 
-    setStatus("Читаю файлы, объединяю выплаты, удержания и рестораны...");
+    currentMode = { payroll: payrollMode, deductions: deductionsMode };
+    applyLayoutMode();
+    setStatus("Читаю файлы и формирую результат...");
 
     const tasks = [
-      parseWorkbookEntries(advanceFile),
-      parseWorkbookEntries(settlementFile),
+      payrollMode ? parseWorkbookEntries(advanceFile) : Promise.resolve([]),
+      payrollMode ? parseWorkbookEntries(settlementFile) : Promise.resolve([]),
       deductionFile ? parseDeductionEntries(deductionFile) : Promise.resolve([]),
-      restaurantFile ? parseRestaurantMap(restaurantFile) : Promise.resolve(new Map()),
+      restaurantFile
+        ? parseRestaurantMap(restaurantFile)
+        : Promise.resolve({ map: new Map(), rows: [] }),
     ];
 
-    const [advanceEntries, settlementEntries, deductionEntries, restaurantMap] = await Promise.all(tasks);
+    const [advanceEntries, settlementEntries, deductionEntries, restaurantData] = await Promise.all(tasks);
 
     allRows = buildResultRows({
       advanceEntries,
       settlementEntries,
       deductionEntries,
-      restaurantMap,
+      restaurantMap: restaurantData.map,
+      restaurantRows: restaurantData.rows,
+      includeAllEmployeesFromRestaurantList: deductionsMode && !payrollMode,
     });
 
     populateRestaurantFilter(allRows);
@@ -70,12 +85,16 @@ processBtn.addEventListener("click", async () => {
       return;
     }
 
-    const knownRestaurants = new Set(allRows.filter((r) => r.restaurant).map((r) => r.restaurant));
-    const withoutRestaurant = allRows.filter((r) => !r.restaurant).length;
+    const visibleRows = allRows.filter(shouldDisplayRowByMode);
+    const knownRestaurants = new Set(visibleRows.filter((r) => r.restaurant).map((r) => r.restaurant));
+    const withoutRestaurant = visibleRows.filter((r) => !r.restaurant).length;
 
-    let msg = `Готово. Сотрудников: ${allRows.length}. Ресторанов: ${knownRestaurants.size}.`;
-    if (!restaurantFile) msg += " Файл ресторанов не загружен.";
-    if (!deductionFile) msg += " Файл удержаний не загружен.";
+    let msg = `Готово. Сотрудников: ${visibleRows.length}. Ресторанов: ${knownRestaurants.size}.`;
+    if (payrollMode && !deductionsMode) msg += " Рассчитан блок НДФЛ.";
+    if (deductionsMode && !payrollMode) msg += " Рассчитан блок удержаний.";
+    if (payrollMode && deductionsMode) msg += " Рассчитаны оба блока.";
+    if (payrollMode && !restaurantFile) msg += " Файл ресторанов не загружен.";
+    if (payrollMode && !deductionFile) msg += " Файл удержаний не загружен.";
     if (withoutRestaurant) msg += ` Без ресторана: ${withoutRestaurant}.`;
 
     setStatus(msg);
@@ -160,18 +179,19 @@ async function parseDeductionEntries(file) {
     const header = detectDeductionHeader(rows);
     if (!header) continue;
 
+    const useDeductionCol = shouldUseDeductionColumn(rows, header);
+
     for (let i = header.headerRowIndex + 1; i < rows.length; i += 1) {
       const row = rows[i];
       const name = normalizeName(row?.[header.nameCol]);
       if (!name) continue;
 
-      const amount = parseAmount(row?.[header.sumCol]);
+      const amountRaw =
+        useDeductionCol && header.deductionAmountCol >= 0
+          ? row?.[header.deductionAmountCol]
+          : row?.[header.sumCol];
+      const amount = parseAmount(amountRaw);
       if (!Number.isFinite(amount) || amount === 0) continue;
-
-      if (header.kindCol >= 0) {
-        const kindText = String(row?.[header.kindCol] ?? "").toLowerCase();
-        if (kindText && !DEDUCTION_HEADER_RE.test(kindText)) continue;
-      }
 
       entries.push({ name, amount });
     }
@@ -180,9 +200,29 @@ async function parseDeductionEntries(file) {
   return entries;
 }
 
+function shouldUseDeductionColumn(rows, header) {
+  if (header.deductionAmountCol < 0) return false;
+
+  let nonZero = 0;
+  for (let i = header.headerRowIndex + 1; i < rows.length; i += 1) {
+    const row = rows[i];
+    const name = normalizeName(row?.[header.nameCol]);
+    if (!name) continue;
+
+    const value = parseAmount(row?.[header.deductionAmountCol]);
+    if (Number.isFinite(value) && value !== 0) {
+      nonZero += 1;
+      if (nonZero >= 3) return true;
+    }
+  }
+
+  return false;
+}
+
 async function parseRestaurantMap(file) {
   const wb = await readWorkbook(file);
   const map = new Map();
+  const rowsOut = [];
 
   for (const sheetName of wb.SheetNames) {
     const rows = toRows(wb.Sheets[sheetName]);
@@ -198,13 +238,21 @@ async function parseRestaurantMap(file) {
       if (!restaurant) continue;
 
       map.set(name, restaurant);
+      rowsOut.push({ name, restaurant });
     }
   }
 
-  return map;
+  return { map, rows: rowsOut };
 }
 
-function buildResultRows({ advanceEntries, settlementEntries, deductionEntries, restaurantMap }) {
+function buildResultRows({
+  advanceEntries,
+  settlementEntries,
+  deductionEntries,
+  restaurantMap,
+  restaurantRows,
+  includeAllEmployeesFromRestaurantList,
+}) {
   const map = new Map();
 
   const ensure = (name) => {
@@ -238,6 +286,12 @@ function buildResultRows({ advanceEntries, settlementEntries, deductionEntries, 
     row.deductions += e.amount;
   });
 
+  if (includeAllEmployeesFromRestaurantList) {
+    restaurantRows.forEach((employee) => {
+      ensure(employee.name);
+    });
+  }
+
   const rows = Array.from(map.values()).map((item) => {
     const totalNet = item.advance + item.settlement;
     const totalGross = totalNet / 0.87;
@@ -262,11 +316,12 @@ function buildResultRows({ advanceEntries, settlementEntries, deductionEntries, 
 function applyCurrentFilter() {
   const selected = new Set(Array.from(restaurantFilter.selectedOptions).map((o) => o.value));
 
-  filteredRows = allRows.filter((row) => {
+  const selectedRows = allRows.filter((row) => {
     if (selected.size === 0) return true;
     if (!row.restaurant) return selected.has(UNASSIGNED);
     return selected.has(row.restaurant);
   });
+  filteredRows = selectedRows.filter(shouldDisplayRowByMode);
 
   renderFilteredRows(filteredRows);
   renderSummary(filteredRows);
@@ -286,17 +341,17 @@ function renderFilteredRows(rows) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${idx + 1}</td>
-      <td>${escapeHtml(row.restaurant)}</td>
+      <td class="restaurant-col">${escapeHtml(row.restaurant)}</td>
       <td>${escapeHtml(row.name)}</td>
-      <td>${fmt(row.advance)}</td>
-      <td>${fmt(row.settlement)}</td>
-      <td>${fmt(row.bonus)}</td>
-      <td>${fmt(row.deductions)}</td>
-      <td>${fmt(row.totalNet)}</td>
-      <td>${fmt(row.totalGross)}</td>
-      <td>${fmt(row.advanceNdfl)}</td>
-      <td>${fmt(row.settlementNdfl)}</td>
-      <td>${fmt(row.totalNdfl)}</td>
+      <td class="payroll-col">${fmt(row.advance)}</td>
+      <td class="payroll-col">${fmt(row.settlement)}</td>
+      <td class="payroll-col">${fmt(row.bonus)}</td>
+      <td class="deduction-col">${fmt(row.deductions)}</td>
+      <td class="payroll-col">${fmt(row.totalNet)}</td>
+      <td class="payroll-col">${fmt(row.totalGross)}</td>
+      <td class="payroll-col">${fmt(row.advanceNdfl)}</td>
+      <td class="payroll-col">${fmt(row.settlementNdfl)}</td>
+      <td class="payroll-col">${fmt(row.totalNdfl)}</td>
     `;
     resultTbody.appendChild(tr);
   });
@@ -353,33 +408,45 @@ function renderSummary(rows) {
   const withRestaurant = rows.filter((r) => r.restaurant).length;
   const withoutRestaurant = rows.length - withRestaurant;
 
-  summaryBox.innerHTML = [
+  const lines = [
     rowStat("Сотрудников (фильтр)", String(rows.length)),
     rowStat("Сотрудников с рестораном", String(withRestaurant)),
     rowStat("Сотрудников без ресторана", String(withoutRestaurant)),
-    rowStat("Общий аванс (на руки)", fmt(totals.advance)),
-    rowStat("Общий подсчет (на руки)", fmt(totals.settlement)),
-    rowStat("Общая премия", fmt(totals.bonus)),
-    rowStat("Общие удержания", fmt(totals.deductions)),
-    rowStat("Итого на руки", fmt(totals.totalNet)),
-    rowStat("ЗП с НДФЛ", fmt(totals.totalGross)),
-    rowStat("НДФЛ аванса", fmt(totals.advanceNdfl)),
-    rowStat("НДФЛ подсчета", fmt(totals.settlementNdfl)),
-    rowStat("Общий НДФЛ", fmt(totals.totalNdfl)),
-  ].join("");
+  ];
+
+  if (currentMode.payroll) {
+    lines.push(rowStat("Общий аванс (на руки)", fmt(totals.advance)));
+    lines.push(rowStat("Общий подсчет (на руки)", fmt(totals.settlement)));
+    lines.push(rowStat("Общая премия", fmt(totals.bonus)));
+    lines.push(rowStat("Итого на руки", fmt(totals.totalNet)));
+    lines.push(rowStat("ЗП с НДФЛ", fmt(totals.totalGross)));
+    lines.push(rowStat("НДФЛ аванса", fmt(totals.advanceNdfl)));
+    lines.push(rowStat("НДФЛ подсчета", fmt(totals.settlementNdfl)));
+    lines.push(rowStat("Общий НДФЛ", fmt(totals.totalNdfl)));
+  }
+
+  if (currentMode.deductions) {
+    lines.push(rowStat("Общие удержания", fmt(totals.deductions)));
+  }
+
+  summaryBox.innerHTML = lines.join("");
 }
 
 function buildRestaurantTotals(rows) {
   const map = new Map();
 
-  rows.filter((r) => r.restaurant).forEach((row) => {
+  const rowsForTotals = rows.filter((r) => r.restaurant);
+
+  rowsForTotals.forEach((row) => {
     const cur = map.get(row.restaurant) || { restaurant: row.restaurant, count: 0, deductions: 0 };
     cur.count += 1;
     cur.deductions += row.deductions;
     map.set(row.restaurant, cur);
   });
 
-  return Array.from(map.values()).sort((a, b) => a.restaurant.localeCompare(b.restaurant, "ru"));
+  return Array.from(map.values())
+    .filter((x) => x.deductions > 0 || currentMode.payroll)
+    .sort((a, b) => a.restaurant.localeCompare(b.restaurant, "ru"));
 }
 
 function renderRestaurantTotals(rows) {
@@ -406,7 +473,8 @@ function renderRestaurantTotals(rows) {
 function populateRestaurantFilter(rows) {
   restaurantFilter.innerHTML = "";
 
-  const restaurants = Array.from(new Set(rows.filter((r) => r.restaurant).map((r) => r.restaurant))).sort((a, b) =>
+  const visibleRows = rows.filter(shouldDisplayRowByMode);
+  const restaurants = Array.from(new Set(visibleRows.filter((r) => r.restaurant).map((r) => r.restaurant))).sort((a, b) =>
     a.localeCompare(b, "ru")
   );
 
@@ -417,10 +485,13 @@ function populateRestaurantFilter(rows) {
     restaurantFilter.appendChild(option);
   });
 
-  const unknownOption = document.createElement("option");
-  unknownOption.value = UNASSIGNED;
-  unknownOption.textContent = "Не определен ресторан";
-  restaurantFilter.appendChild(unknownOption);
+  const hasUnassigned = visibleRows.some((r) => !r.restaurant);
+  if (hasUnassigned) {
+    const unknownOption = document.createElement("option");
+    unknownOption.value = UNASSIGNED;
+    unknownOption.textContent = "Не определен ресторан";
+    restaurantFilter.appendChild(unknownOption);
+  }
 
   applyFilterBtn.disabled = rows.length === 0;
   clearFilterBtn.disabled = rows.length === 0;
@@ -439,18 +510,19 @@ function detectDeductionHeader(rows) {
 
     let nameCol = -1;
     let sumCol = -1;
-    let kindCol = -1;
+    let deductionAmountCol = -1;
 
     for (let c = 0; c < normalized.length; c += 1) {
       const cell = normalized[c];
       if (nameCol === -1 && NAME_HEADER_RE.test(cell)) nameCol = c;
       if (sumCol === -1 && SUM_HEADER_RE.test(cell)) sumCol = c;
-      if (kindCol === -1 && DEDUCTION_HEADER_RE.test(cell)) kindCol = c;
-      if (kindCol === -1 && /(название|операция|тип)/i.test(cell)) kindCol = c;
+      if (deductionAmountCol === -1 && /(взыскано|удерж|штраф|алим|вычет|deduct)/i.test(cell)) {
+        deductionAmountCol = c;
+      }
     }
 
     if (nameCol !== -1 && sumCol !== -1) {
-      return { headerRowIndex: r, nameCol, sumCol, kindCol };
+      return { headerRowIndex: r, nameCol, sumCol, deductionAmountCol };
     }
   }
 
@@ -568,6 +640,52 @@ function setStatus(text) {
   statusBox.textContent = text;
 }
 
+function shouldDisplayRowByMode(row) {
+  if (currentMode.deductions && !currentMode.payroll) {
+    return row.deductions > 0;
+  }
+  return true;
+}
+
+function applyLayoutMode() {
+  document.body.classList.remove("mode-payroll-only", "mode-deductions-only", "mode-combined");
+
+  const payrollOnly = currentMode.payroll && !currentMode.deductions;
+  const deductionsOnly = !currentMode.payroll && currentMode.deductions;
+
+  if (payrollOnly) {
+    document.body.classList.add("mode-payroll-only");
+    toggleCollapsed(filterPanel, true);
+    toggleCollapsed(restaurantTotalsPanel, true);
+    toggleCollapsed(unassignedPanel, true);
+    toggleCollapsed(summaryPanel, false);
+    toggleCollapsed(resultTablePanel, false);
+    return;
+  }
+
+  if (deductionsOnly) {
+    document.body.classList.add("mode-deductions-only");
+    toggleCollapsed(filterPanel, false);
+    toggleCollapsed(restaurantTotalsPanel, false);
+    toggleCollapsed(unassignedPanel, false);
+    toggleCollapsed(summaryPanel, false);
+    toggleCollapsed(resultTablePanel, false);
+    return;
+  }
+
+  document.body.classList.add("mode-combined");
+  toggleCollapsed(filterPanel, false);
+  toggleCollapsed(restaurantTotalsPanel, false);
+  toggleCollapsed(unassignedPanel, false);
+  toggleCollapsed(summaryPanel, false);
+  toggleCollapsed(resultTablePanel, false);
+}
+
+function toggleCollapsed(element, collapsed) {
+  if (!element) return;
+  element.classList.toggle("is-collapsed", collapsed);
+}
+
 function clearUi() {
   setStatus("");
   summaryBox.innerHTML = "";
@@ -582,6 +700,8 @@ function clearUi() {
 
   allRows = [];
   filteredRows = [];
+  currentMode = { payroll: false, deductions: false };
+  applyLayoutMode();
 }
 
 function todayStamp() {

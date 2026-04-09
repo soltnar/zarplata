@@ -158,6 +158,19 @@ td:nth-child(3) {
   text-align: left;
 }
 
+.is-collapsed {
+  display: none;
+}
+
+.mode-payroll-only #resultTable .deduction-col,
+.mode-payroll-only #resultTable .restaurant-col {
+  display: none;
+}
+
+.mode-deductions-only #resultTable .payroll-col {
+  display: none;
+}
+
 thead th {
   background: #ecf6f5;
 }

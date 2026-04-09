@@ -62,34 +62,38 @@
       <div id="status" class="status" aria-live="polite"></div>
     </section>
 
-    <section class="panel summary" id="summary"></section>
+    <section class="panel summary" id="summaryPanel">
+      <div id="summary"></div>
+    </section>
 
-    <section class="panel summary" id="restaurantTotals"></section>
+    <section class="panel summary" id="restaurantTotalsPanel">
+      <div id="restaurantTotals"></div>
+    </section>
 
-    <section class="panel table-wrap">
+    <section class="panel table-wrap" id="resultTablePanel">
       <h2>Сотрудники с определенным рестораном</h2>
       <table id="resultTable">
         <thead>
           <tr>
             <th>№</th>
-            <th>Ресторан</th>
+            <th class="restaurant-col">Ресторан</th>
             <th>ФИО</th>
-            <th>Аванс (на руки)</th>
-            <th>Подсчет (на руки)</th>
-            <th>Премия</th>
-            <th>Удержания</th>
-            <th>Итого на руки</th>
-            <th>ЗП с НДФЛ</th>
-            <th>НДФЛ аванса</th>
-            <th>НДФЛ подсчета</th>
-            <th>Общий НДФЛ</th>
+            <th class="payroll-col">Аванс (на руки)</th>
+            <th class="payroll-col">Подсчет (на руки)</th>
+            <th class="payroll-col">Премия</th>
+            <th class="deduction-col">Удержания</th>
+            <th class="payroll-col">Итого на руки</th>
+            <th class="payroll-col">ЗП с НДФЛ</th>
+            <th class="payroll-col">НДФЛ аванса</th>
+            <th class="payroll-col">НДФЛ подсчета</th>
+            <th class="payroll-col">Общий НДФЛ</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </section>
 
-    <section class="panel table-wrap">
+    <section class="panel table-wrap" id="unassignedPanel">
       <h2>Сотрудники без определенного ресторана</h2>
       <table id="unassignedTable">
         <thead>
