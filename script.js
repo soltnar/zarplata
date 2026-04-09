@@ -667,6 +667,9 @@ function normalizeName(value) {
     .trim();
 
   if (!/[A-Za-zА-Яа-яЁё]/.test(cleaned)) return "";
+  const fullNameLike = /^[A-Za-zА-Яа-яЁё-]{2,}\s+[A-Za-zА-Яа-яЁё-]{2,}(\s+[A-Za-zА-Яа-яЁё-]{2,})?$/.test(cleaned);
+  const initialsLike = /^[A-Za-zА-Яа-яЁё-]{2,}\s+[A-Za-zА-Яа-яЁё]\.?\s+[A-Za-zА-Яа-яЁё]\.?$/.test(cleaned);
+  if (!fullNameLike && !initialsLike) return "";
   return cleaned;
 }
 
