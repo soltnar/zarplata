@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Свод зарплаты, НДФЛ и удержаний</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="xlsx.full.min.js"></script>
+</head>
+<body>
+  <main class="container">
+    <h1>Свод зарплаты, НДФЛ и удержаний</h1>
+    <p class="hint">
+      Загрузите файлы выплат, удержаний и список сотрудников с ресторанами.
+      Сервис объединит данные по ФИО, посчитает НДФЛ и сгруппирует удержания по ресторанам.
+    </p>
+
+    <section class="panel inputs">
+      <h2>Основные файлы</h2>
+      <label>
+        <span>Файл Аванса</span>
+        <input type="file" id="advanceFile" accept=".xls,.xlsx,.xlsm" />
+      </label>
+
+      <label>
+        <span>Файл Подсчета</span>
+        <input type="file" id="settlementFile" accept=".xls,.xlsx,.xlsm" />
+      </label>
+
+      <div class="actions">
+        <button id="processBtn" type="button">Рассчитать</button>
+        <button id="exportBtn" type="button" disabled>Выгрузить в Excel</button>
+      </div>
+    </section>
+
+    <section class="panel inputs">
+      <h2>Удержания и рестораны</h2>
+      <label>
+        <span>Файл удержаний</span>
+        <input type="file" id="deductionFile" accept=".xls,.xlsx,.xlsm" />
+      </label>
+
+      <label>
+        <span>Файл сотрудников/ресторанов</span>
+        <input type="file" id="restaurantFile" accept=".xls,.xlsx,.xlsm" />
+      </label>
+    </section>
+
+    <section class="panel inputs filter-panel" id="filterPanel">
+      <h2>Фильтр по ресторанам</h2>
+      <label>
+        <span>Выберите один или несколько ресторанов (Ctrl/Cmd + клик)</span>
+        <select id="restaurantFilter" multiple size="8"></select>
+      </label>
+      <div class="actions">
+        <button id="applyFilterBtn" type="button" disabled>Применить фильтр</button>
+        <button id="clearFilterBtn" type="button" disabled>Сбросить фильтр</button>
+      </div>
+    </section>
+
+    <section class="panel status-panel">
+      <div id="status" class="status" aria-live="polite"></div>
+    </section>
+
+    <section class="panel summary" id="summary"></section>
+
+    <section class="panel summary" id="restaurantTotals"></section>
+
+    <section class="panel table-wrap">
+      <h2>Сотрудники с определенным рестораном</h2>
+      <table id="resultTable">
+        <thead>
+          <tr>
+            <th>№</th>
+            <th>Ресторан</th>
+            <th>ФИО</th>
+            <th>Аванс (на руки)</th>
+            <th>Подсчет (на руки)</th>
+            <th>Премия</th>
+            <th>Удержания</th>
+            <th>Итого на руки</th>
+            <th>ЗП с НДФЛ</th>
+            <th>НДФЛ аванса</th>
+            <th>НДФЛ подсчета</th>
+            <th>Общий НДФЛ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="panel table-wrap">
+      <h2>Сотрудники без определенного ресторана</h2>
+      <table id="unassignedTable">
+        <thead>
+          <tr>
+            <th>№</th>
+            <th>ФИО</th>
+            <th>Удержания</th>
+            <th>Аванс (на руки)</th>
+            <th>Подсчет (на руки)</th>
+            <th>Премия</th>
+            <th>Итого на руки</th>
+            <th>ЗП с НДФЛ</th>
+            <th>Общий НДФЛ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
