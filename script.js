@@ -331,8 +331,9 @@ function applyCurrentFilter() {
 }
 
 function renderFilteredRows(rows) {
-  const assigned = rows.filter((r) => r.restaurant);
-  const unassigned = rows.filter((r) => !r.restaurant);
+  const payrollOnly = currentMode.payroll && !currentMode.deductions;
+  const assigned = payrollOnly ? rows : rows.filter((r) => r.restaurant);
+  const unassigned = payrollOnly ? [] : rows.filter((r) => !r.restaurant);
 
   resultTbody.innerHTML = "";
   unassignedTbody.innerHTML = "";
