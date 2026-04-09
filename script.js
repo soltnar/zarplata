@@ -658,6 +658,8 @@ function normalizeName(value) {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
   if (/^(итого|всего|подпис|дата|номер|лист|по лицевому счету)$/i.test(raw)) return "";
+  if (/^\d+([.,]\d+)?$/.test(raw)) return "";
+  if (/^[№#\d\s./-]+$/.test(raw)) return "";
 
   return raw
     .replace(/\s+/g, " ")
