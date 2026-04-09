@@ -3,66 +3,78 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Свод зарплаты, НДФЛ и удержаний</title>
+  <title>Свод зарплаты и удержаний</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <script src="xlsx.full.min.js"></script>
 </head>
 <body>
   <main class="container">
-    <h1>Свод зарплаты, НДФЛ и удержаний</h1>
-    <p class="hint">
-      Загрузите файлы выплат, удержаний и список сотрудников с ресторанами.
-      Сервис объединит данные по ФИО, посчитает НДФЛ и сгруппирует удержания по ресторанам.
-    </p>
+    <section class="hero panel">
+      <div>
+        <p class="eyebrow">Excel → Свод</p>
+        <h1>Зарплата, НДФЛ и удержания</h1>
+        <p class="hint">Загружайте нужные пары файлов. Интерфейс автоматически перестраивается под выбранный сценарий.</p>
+      </div>
+      <div class="mode-chip" id="modeChip">Режим: ожидание файлов</div>
+    </section>
 
-    <section class="panel inputs">
-      <h2>Основные файлы</h2>
-      <label>
-        <span>Файл Аванса</span>
-        <input type="file" id="advanceFile" accept=".xls,.xlsx,.xlsm" />
-      </label>
+    <section class="panel upload-grid">
+      <article class="upload-card">
+        <h2>Блок НДФЛ</h2>
+        <p class="card-note">Для расчета зарплаты и НДФЛ загрузите оба файла.</p>
+        <label>
+          <span>Файл аванса</span>
+          <input type="file" id="advanceFile" accept=".xls,.xlsx,.xlsm" />
+        </label>
+        <label>
+          <span>Файл подсчета</span>
+          <input type="file" id="settlementFile" accept=".xls,.xlsx,.xlsm" />
+        </label>
+      </article>
 
-      <label>
-        <span>Файл Подсчета</span>
-        <input type="file" id="settlementFile" accept=".xls,.xlsx,.xlsm" />
-      </label>
+      <article class="upload-card">
+        <h2>Блок удержаний</h2>
+        <p class="card-note">Для сводки по ресторанам загрузите оба файла.</p>
+        <label>
+          <span>Файл удержаний</span>
+          <input type="file" id="deductionFile" accept=".xls,.xlsx,.xlsm" />
+        </label>
+        <label>
+          <span>Файл сотрудников и ресторанов</span>
+          <input type="file" id="restaurantFile" accept=".xls,.xlsx,.xlsm" />
+        </label>
+      </article>
+    </section>
 
+    <section class="panel control-bar">
       <div class="actions">
         <button id="processBtn" type="button">Рассчитать</button>
-        <button id="exportBtn" type="button" disabled>Выгрузить в Excel</button>
+        <button id="exportBtn" type="button" disabled>Выгрузить Excel</button>
       </div>
-    </section>
-
-    <section class="panel inputs">
-      <h2>Удержания и рестораны</h2>
-      <label>
-        <span>Файл удержаний</span>
-        <input type="file" id="deductionFile" accept=".xls,.xlsx,.xlsm" />
-      </label>
-
-      <label>
-        <span>Файл сотрудников/ресторанов</span>
-        <input type="file" id="restaurantFile" accept=".xls,.xlsx,.xlsm" />
-      </label>
-    </section>
-
-    <section class="panel inputs filter-panel" id="filterPanel">
-      <h2>Фильтр по ресторанам</h2>
-      <label>
-        <span>Выберите один или несколько ресторанов (Ctrl/Cmd + клик)</span>
-        <select id="restaurantFilter" multiple size="8"></select>
-      </label>
-      <div class="actions">
-        <button id="applyFilterBtn" type="button" disabled>Применить фильтр</button>
-        <button id="clearFilterBtn" type="button" disabled>Сбросить фильтр</button>
-      </div>
-    </section>
-
-    <section class="panel status-panel">
       <div id="status" class="status" aria-live="polite"></div>
     </section>
 
+    <section class="panel filter-panel" id="filterPanel">
+      <div class="panel-head">
+        <h2>Фильтр ресторанов</h2>
+        <p>Можно выбрать несколько значений</p>
+      </div>
+      <div class="filter-row">
+        <select id="restaurantFilter" multiple size="7"></select>
+        <div class="actions">
+          <button id="applyFilterBtn" type="button" disabled>Применить</button>
+          <button id="clearFilterBtn" type="button" disabled>Сбросить</button>
+        </div>
+      </div>
+    </section>
+
     <section class="panel summary" id="summaryPanel">
+      <div class="panel-head">
+        <h2>Сводные показатели</h2>
+      </div>
       <div id="summary"></div>
     </section>
 
@@ -71,15 +83,17 @@
     </section>
 
     <section class="panel table-wrap" id="resultTablePanel">
-      <h2>Сотрудники с определенным рестораном</h2>
+      <div class="panel-head">
+        <h2>Основная таблица</h2>
+      </div>
       <table id="resultTable">
         <thead>
           <tr>
             <th>№</th>
             <th class="restaurant-col">Ресторан</th>
             <th>ФИО</th>
-            <th class="payroll-col">Аванс (на руки)</th>
-            <th class="payroll-col">Подсчет (на руки)</th>
+            <th class="payroll-col">Аванс</th>
+            <th class="payroll-col">Подсчет</th>
             <th class="payroll-col">Премия</th>
             <th class="deduction-col">Удержания</th>
             <th class="payroll-col">Итого на руки</th>
@@ -94,15 +108,17 @@
     </section>
 
     <section class="panel table-wrap" id="unassignedPanel">
-      <h2>Сотрудники без определенного ресторана</h2>
+      <div class="panel-head">
+        <h2>Сотрудники без ресторана</h2>
+      </div>
       <table id="unassignedTable">
         <thead>
           <tr>
             <th>№</th>
             <th>ФИО</th>
             <th>Удержания</th>
-            <th>Аванс (на руки)</th>
-            <th>Подсчет (на руки)</th>
+            <th>Аванс</th>
+            <th>Подсчет</th>
             <th>Премия</th>
             <th>Итого на руки</th>
             <th>ЗП с НДФЛ</th>

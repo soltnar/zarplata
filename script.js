@@ -17,6 +17,7 @@ const summaryPanel = document.getElementById("summaryPanel");
 const restaurantTotalsPanel = document.getElementById("restaurantTotalsPanel");
 const resultTablePanel = document.getElementById("resultTablePanel");
 const unassignedPanel = document.getElementById("unassignedPanel");
+const modeChip = document.getElementById("modeChip");
 
 const resultTbody = document.querySelector("#resultTable tbody");
 const unassignedTbody = document.querySelector("#unassignedTable tbody");
@@ -314,13 +315,17 @@ function buildResultRows({
 }
 
 function applyCurrentFilter() {
+  const payrollOnly = currentMode.payroll && !currentMode.deductions;
   const selected = new Set(Array.from(restaurantFilter.selectedOptions).map((o) => o.value));
 
-  const selectedRows = allRows.filter((row) => {
-    if (selected.size === 0) return true;
-    if (!row.restaurant) return selected.has(UNASSIGNED);
-    return selected.has(row.restaurant);
-  });
+  const selectedRows = payrollOnly
+    ? [...allRows]
+    : allRows.filter((row) => {
+        if (selected.size === 0) return true;
+        if (!row.restaurant) return selected.has(UNASSIGNED);
+        return selected.has(row.restaurant);
+      });
+
   filteredRows = selectedRows.filter(shouldDisplayRowByMode);
 
   renderFilteredRows(filteredRows);
@@ -372,11 +377,15 @@ function renderFilteredRows(rows) {
     `;
     unassignedTbody.appendChild(tr);
   });
+
+  toggleCollapsed(resultTablePanel, assigned.length === 0);
+  toggleCollapsed(unassignedPanel, payrollOnly || unassigned.length === 0);
 }
 
 function renderSummary(rows) {
   if (!rows.length) {
     summaryBox.innerHTML = "";
+    toggleCollapsed(summaryPanel, true);
     return;
   }
 
@@ -431,6 +440,7 @@ function renderSummary(rows) {
   }
 
   summaryBox.innerHTML = lines.join("");
+  toggleCollapsed(summaryPanel, false);
 }
 
 function buildRestaurantTotals(rows) {
@@ -454,7 +464,8 @@ function renderRestaurantTotals(rows) {
   const totals = buildRestaurantTotals(rows);
 
   if (!totals.length) {
-    restaurantTotalsBox.innerHTML = rowStat("Удержания по ресторанам", "Нет данных для отображения");
+    restaurantTotalsBox.innerHTML = "";
+    toggleCollapsed(restaurantTotalsPanel, true);
     return;
   }
 
@@ -469,6 +480,7 @@ function renderRestaurantTotals(rows) {
   });
 
   restaurantTotalsBox.innerHTML = html.join("");
+  toggleCollapsed(restaurantTotalsPanel, false);
 }
 
 function populateRestaurantFilter(rows) {
@@ -649,13 +661,26 @@ function shouldDisplayRowByMode(row) {
 }
 
 function applyLayoutMode() {
-  document.body.classList.remove("mode-payroll-only", "mode-deductions-only", "mode-combined");
+  document.body.classList.remove("mode-payroll-only", "mode-deductions-only", "mode-combined", "mode-idle");
 
+  const idle = !currentMode.payroll && !currentMode.deductions;
   const payrollOnly = currentMode.payroll && !currentMode.deductions;
   const deductionsOnly = !currentMode.payroll && currentMode.deductions;
 
+  if (idle) {
+    document.body.classList.add("mode-idle");
+    if (modeChip) modeChip.textContent = "Режим: ожидание файлов";
+    toggleCollapsed(filterPanel, true);
+    toggleCollapsed(restaurantTotalsPanel, true);
+    toggleCollapsed(unassignedPanel, true);
+    toggleCollapsed(summaryPanel, true);
+    toggleCollapsed(resultTablePanel, true);
+    return;
+  }
+
   if (payrollOnly) {
     document.body.classList.add("mode-payroll-only");
+    if (modeChip) modeChip.textContent = "Режим: только НДФЛ";
     toggleCollapsed(filterPanel, true);
     toggleCollapsed(restaurantTotalsPanel, true);
     toggleCollapsed(unassignedPanel, true);
@@ -666,6 +691,7 @@ function applyLayoutMode() {
 
   if (deductionsOnly) {
     document.body.classList.add("mode-deductions-only");
+    if (modeChip) modeChip.textContent = "Режим: только удержания";
     toggleCollapsed(filterPanel, false);
     toggleCollapsed(restaurantTotalsPanel, false);
     toggleCollapsed(unassignedPanel, false);
@@ -675,6 +701,7 @@ function applyLayoutMode() {
   }
 
   document.body.classList.add("mode-combined");
+  if (modeChip) modeChip.textContent = "Режим: объединенный";
   toggleCollapsed(filterPanel, false);
   toggleCollapsed(restaurantTotalsPanel, false);
   toggleCollapsed(unassignedPanel, false);
@@ -721,3 +748,5 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+
+clearUi();
