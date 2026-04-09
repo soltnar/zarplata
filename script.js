@@ -661,10 +661,13 @@ function normalizeName(value) {
   if (/^\d+([.,]\d+)?$/.test(raw)) return "";
   if (/^[№#\d\s./-]+$/.test(raw)) return "";
 
-  return raw
+  const cleaned = raw
     .replace(/\s+/g, " ")
     .replace(/["'`]+/g, "")
     .trim();
+
+  if (!/[A-Za-zА-Яа-яЁё]/.test(cleaned)) return "";
+  return cleaned;
 }
 
 function normalizeRestaurant(value) {
