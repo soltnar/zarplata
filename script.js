@@ -120,31 +120,52 @@ clearFilterBtn.addEventListener("click", () => {
 exportBtn.addEventListener("click", () => {
   if (!filteredRows.length) return;
 
-  const exportRows = filteredRows.map((item, idx) => ({
-    "№": idx + 1,
-    "Ресторан": item.restaurant || "Не определен",
-    "ФИО": item.name,
-    "Аванс (на руки)": item.advance,
-    "Подсчет (на руки)": item.settlement,
-    "Премия": item.bonus,
-    "Удержания": item.deductions,
-    "Итого на руки": item.totalNet,
-    "ЗП с НДФЛ": item.totalGross,
-    "НДФЛ аванса": item.advanceNdfl,
-    "НДФЛ подсчета": item.settlementNdfl,
-    "Общий НДФЛ": item.totalNdfl,
-  }));
+  const payrollOnly = currentMode.payroll && !currentMode.deductions;
+  const deductionsOnly = !currentMode.payroll && currentMode.deductions;
+  const hasRestaurant = filteredRows.some((r) => Boolean(r.restaurant));
+  const hasPremium = filteredRows.some((r) => Math.abs(r.bonus) > 0.000001);
 
-  const totalsByRestaurant = buildRestaurantTotals(filteredRows).map((x) => ({
-    "Ресторан": x.restaurant,
-    "Сотрудников": x.count,
-    "Сумма удержаний": x.deductions,
-  }));
+  const exportRows = filteredRows.map((item, idx) => {
+    const row = {
+      "№": idx + 1,
+      "ФИО": item.name,
+    };
+
+    if (hasRestaurant) row["Ресторан"] = item.restaurant || "Не определен";
+
+    if (deductionsOnly) {
+      row["Удержания"] = item.deductions;
+      return row;
+    }
+
+    row["Аванс (на руки)"] = item.advance;
+    row["Подсчет (на руки)"] = item.settlement;
+    if (hasPremium) row["Премия"] = item.bonus;
+    if (!payrollOnly) row["Удержания"] = item.deductions;
+    row["Итого на руки"] = item.totalNet;
+    row["ЗП с НДФЛ"] = item.totalGross;
+    row["НДФЛ аванса"] = item.advanceNdfl;
+    row["НДФЛ подсчета"] = item.settlementNdfl;
+    row["Общий НДФЛ"] = item.totalNdfl;
+    return row;
+  });
+
+  const totalsByRestaurant = currentMode.deductions
+    ? buildRestaurantTotals(filteredRows).map((x) => ({
+        "Ресторан": x.restaurant,
+        "Сотрудников": x.count,
+        "Сумма удержаний": x.deductions,
+      }))
+    : [];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportRows), "Свод");
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(totalsByRestaurant), "Удержания по ресторанам");
-  XLSX.writeFile(wb, `Свод_ЗП_НДФЛ_Удержания_${todayStamp()}_v${APP_VERSION}.xlsx`);
+  if (totalsByRestaurant.length > 0) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(totalsByRestaurant), "Удержания по ресторанам");
+  }
+
+  const modeSuffix = payrollOnly ? "ЗП_НДФЛ" : deductionsOnly ? "Удержания" : "ЗП_НДФЛ_Удержания";
+  XLSX.writeFile(wb, `Свод_${modeSuffix}_${todayStamp()}_v${APP_VERSION}.xlsx`);
 });
 
 async function parseWorkbookEntries(file) {
