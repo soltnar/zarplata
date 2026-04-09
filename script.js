@@ -328,6 +328,8 @@ function applyCurrentFilter() {
 
   filteredRows = selectedRows.filter(shouldDisplayRowByMode);
 
+  applyPremiumVisibility(filteredRows);
+
   renderFilteredRows(filteredRows);
   renderSummary(filteredRows);
   renderRestaurantTotals(filteredRows);
@@ -359,7 +361,7 @@ function renderFilteredRows(rows) {
         <td>${escapeHtml(row.name)}</td>
         <td>${fmt(row.advance)}</td>
         <td>${fmt(row.settlement)}</td>
-        <td>${fmt(row.bonus)}</td>
+        <td class="premium-col">${fmt(row.bonus)}</td>
         <td>${fmt(row.totalNet)}</td>
         <td>${fmt(row.totalGross)}</td>
         <td>${fmt(row.advanceNdfl)}</td>
@@ -380,7 +382,7 @@ function renderFilteredRows(rows) {
         <td>${escapeHtml(row.name)}</td>
         <td class="payroll-col">${fmt(row.advance)}</td>
         <td class="payroll-col">${fmt(row.settlement)}</td>
-        <td class="payroll-col">${fmt(row.bonus)}</td>
+        <td class="payroll-col premium-col">${fmt(row.bonus)}</td>
         <td class="deduction-col">${fmt(row.deductions)}</td>
         <td class="payroll-col">${fmt(row.totalNet)}</td>
         <td class="payroll-col">${fmt(row.totalGross)}</td>
@@ -400,7 +402,7 @@ function renderFilteredRows(rows) {
       <td>${fmt(row.deductions)}</td>
       <td>${fmt(row.advance)}</td>
       <td>${fmt(row.settlement)}</td>
-      <td>${fmt(row.bonus)}</td>
+      <td class="premium-col">${fmt(row.bonus)}</td>
       <td>${fmt(row.totalNet)}</td>
       <td>${fmt(row.totalGross)}</td>
       <td>${fmt(row.totalNdfl)}</td>
@@ -457,7 +459,9 @@ function renderSummary(rows) {
   if (currentMode.payroll) {
     lines.push(rowStat("Общий аванс (на руки)", fmt(totals.advance)));
     lines.push(rowStat("Общий подсчет (на руки)", fmt(totals.settlement)));
-    lines.push(rowStat("Общая премия", fmt(totals.bonus)));
+    if (Math.abs(totals.bonus) > 0.000001) {
+      lines.push(rowStat("Общая премия", fmt(totals.bonus)));
+    }
     lines.push(rowStat("Итого на руки", fmt(totals.totalNet)));
     lines.push(rowStat("ЗП с НДФЛ", fmt(totals.totalGross)));
     lines.push(rowStat("НДФЛ аванса", fmt(totals.advanceNdfl)));
@@ -681,6 +685,11 @@ function rowStat(label, value) {
 
 function setStatus(text) {
   statusBox.textContent = text;
+}
+
+function applyPremiumVisibility(rows) {
+  const hasPremium = currentMode.payroll && rows.some((r) => Math.abs(r.bonus) > 0.000001);
+  document.body.classList.toggle("hide-premium", !hasPremium);
 }
 
 function shouldDisplayRowByMode(row) {

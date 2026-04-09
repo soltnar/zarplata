@@ -249,6 +249,10 @@ td:nth-child(3) {
   display: none;
 }
 
+.hide-premium .premium-col {
+  display: none;
+}
+
 @media (max-width: 920px) {
   .hero {
     flex-direction: column;
