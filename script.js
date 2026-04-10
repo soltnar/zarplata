@@ -20,7 +20,7 @@ const unassignedPanel = document.getElementById("unassignedPanel");
 const modeChip = document.getElementById("modeChip");
 const versionChip = document.getElementById("versionChip");
 
-const APP_VERSION = "2026.04.09.01";
+const APP_VERSION = "2026.04.10.02";
 
 const resultTbody = document.querySelector("#resultTable tbody");
 const unassignedTbody = document.querySelector("#unassignedTable tbody");
@@ -28,6 +28,7 @@ const unassignedTbody = document.querySelector("#unassignedTable tbody");
 let allRows = [];
 let filteredRows = [];
 let currentMode = { payroll: false, deductions: false };
+let baseStatusMessage = "";
 
 const UNASSIGNED = "__UNASSIGNED__";
 
@@ -57,7 +58,8 @@ processBtn.addEventListener("click", async () => {
 
     currentMode = { payroll: payrollMode, deductions: deductionsMode };
     applyLayoutMode();
-    setStatus("Читаю файлы и формирую результат...");
+    baseStatusMessage = "Читаю файлы и формирую результат...";
+    setStatus(baseStatusMessage);
 
     const tasks = [
       payrollMode ? parseWorkbookEntries(advanceFile) : Promise.resolve([]),
@@ -101,9 +103,11 @@ processBtn.addEventListener("click", async () => {
     if (payrollMode && !deductionFile) msg += " Файл удержаний не загружен.";
     if (withoutRestaurant) msg += ` Без ресторана: ${withoutRestaurant}.`;
 
-    setStatus(msg);
+    baseStatusMessage = msg;
+    setStatus(buildStatusMessage(msg));
   } catch (error) {
     console.error(error);
+    baseStatusMessage = "";
     setStatus(`Ошибка обработки: ${error.message}`);
   }
 });
@@ -359,6 +363,7 @@ function applyCurrentFilter() {
   renderRestaurantTotals(filteredRows);
 
   exportBtn.disabled = filteredRows.length === 0;
+  if (baseStatusMessage) setStatus(buildStatusMessage(baseStatusMessage));
 }
 
 function renderFilteredRows(rows) {
@@ -719,6 +724,21 @@ function setStatus(text) {
   statusBox.textContent = text;
 }
 
+function buildStatusMessage(base) {
+  if (!base) return "";
+  if (!allRows.length) return base;
+
+  const selected = Array.from(restaurantFilter.selectedOptions).map((o) => o.value);
+  if (!selected.length) {
+    return `${base} Фильтр: все рестораны. Показано: ${filteredRows.length}.`;
+  }
+
+  const labels = selected.map((value) => (value === UNASSIGNED ? "Без ресторана" : value));
+  const preview = labels.slice(0, 2).join(", ");
+  const suffix = labels.length > 2 ? ` и еще ${labels.length - 2}` : "";
+  return `${base} Фильтр: ${preview}${suffix}. Показано: ${filteredRows.length}.`;
+}
+
 function applyPremiumVisibility(rows) {
   const hasPremium = currentMode.payroll && rows.some((r) => Math.abs(r.bonus) > 0.000001);
   document.body.classList.toggle("hide-premium", !hasPremium);
@@ -799,6 +819,7 @@ function clearUi() {
 
   allRows = [];
   filteredRows = [];
+  baseStatusMessage = "";
   currentMode = { payroll: false, deductions: false };
   applyLayoutMode();
 }
